@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart QR Attendance | Teacher Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+</head>
+
+<body class="min-h-screen bg-slate-50 font-['Inter'] text-slate-800">
+
+    <!-- Top Navigation -->
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center gap-3">
+                    <div class="bg-indigo-600 p-2 rounded-lg text-white font-bold">QA</div>
+                    <div>
+                        <h1 class="font-bold text-lg text-slate-900 leading-tight">Teacher Portal</h1>
+                        <p class="text-xs font-medium text-slate-500">Live Scanner Dashboard</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button id="refreshBtn"
+                        class="hidden sm:flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2 px-4 rounded-lg transition-colors text-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15">
+                            </path>
+                        </svg>
+                        Refresh
+                    </button>
+                    <button id="logoutBtn"
+                        class="bg-red-50 text-red-600 hover:bg-red-100 font-medium py-2 px-4 rounded-lg transition-colors duration-200 text-sm border border-red-100">
+                        Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 fade-in">
+
+        <!-- Header & Session Control -->
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+            <div>
+                <h2 class="text-2xl font-bold text-slate-900">Live Attendance Session</h2>
+                <p class="text-slate-500 mt-1">Start a session and scan student QR codes.</p>
+            </div>
+
+            <a href="/dashboard"
+                class="flex items-center gap-2 text-indigo-600 hover:text-indigo-800 font-semibold bg-indigo-50 hover:bg-indigo-100 py-2.5 px-5 rounded-xl transition-all">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z">
+                    </path>
+                </svg>
+                View Analytics
+            </a>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+            <!-- Left Column: Scanner -->
+            <div class="lg:col-span-5 space-y-6">
+                <!-- Control Card -->
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                    <div id="control-group" class="text-center">
+                        <button id="startSessionBtn"
+                            class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-200 transform transition-all hover:-translate-y-0.5 mb-2">
+                            Start New Session & Open Scanner
+                        </button>
+                        <div id="sessionInfo" class="hidden mt-4 p-4 bg-indigo-50 border border-indigo-100 rounded-xl">
+                            <h3 id="sessionIdDisplay" class="font-bold text-indigo-800 text-lg"></h3>
+                            <span
+                                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700 mt-2">
+                                <span class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+                                Session Active
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Scanner Card -->
+                <div id="scanContainer"
+                    class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 p-6 relative overflow-hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <div
+                            class="bg-indigo-50 text-indigo-700 px-4 py-1.5 rounded-full font-bold text-sm border border-indigo-100">
+                            Scanned: <span id="scanCounter">0</span>
+                        </div>
+                        <button id="stopScanBtn"
+                            class="text-red-500 hover:text-red-700 hover:bg-red-50 font-semibold px-3 py-1.5 rounded-lg text-sm transition-colors cursor-pointer z-10 relative">
+                            Stop Camera
+                        </button>
+                    </div>
+
+                    <div
+                        class="bg-slate-900 rounded-xl overflow-hidden shadow-inner border border-slate-200 relative aspect-video flex items-center justify-center">
+                        <video id="videoFeed" class="absolute w-full h-full object-cover" playsinline></video>
+                        <canvas id="canvasOutput"
+                            class="absolute w-full h-full object-cover z-10 pointer-events-none"></canvas>
+                        <div id="cameraLoading" class="text-white font-medium z-0 hidden">Initializing Camera...</div>
+                    </div>
+
+                    <div id="toastContainer"
+                        class="absolute top-20 left-1/2 -translate-x-1/2 w-11/12 z-50 flex flex-col items-center"></div>
+
+                    <div class="mt-5 text-center p-3 rounded-lg bg-slate-50 border border-slate-100">
+                        <p id="scanStatus" class="font-medium text-slate-600 status-message">Waiting for QR code...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Student List -->
+            <div class="lg:col-span-7">
+                <div
+                    class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden h-full flex flex-col min-h-[500px]">
+                    <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                        <h3 class="font-bold text-slate-800">Scanned Students</h3>
+                        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Live Log</span>
+                    </div>
+
+                    <div class="overflow-x-auto flex-grow">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr
+                                    class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                                    <th class="p-4 font-semibold">Student Name</th>
+                                    <th class="p-4 font-semibold">Roll No</th>
+                                    <th class="p-4 font-semibold hidden sm:table-cell">Time</th>
+                                    <th class="p-4 font-semibold text-right">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="attendanceTableBody" class="divide-y divide-slate-100 text-sm">
+                                <tr>
+                                    <td colspan="4" class="p-8 text-center text-slate-400 italic">No session active.
+                                        Start a session to see students here.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+
+</html>

@@ -1,0 +1,35 @@
+remote: error: GH013: Repository rule violations found for refs/heads/main.        
+remote: 
+remote: - GITHUB PUSH PROTECTION        
+remote:   —————————————————————————————————————————        
+remote:     Resolve the following violations before pushing again        
+remote: 
+remote:     - Push cannot contain secrets        
+remote: 
+remote:             
+remote:      (?) Learn how to resolve a blocked push        
+remote:      https://docs.github.com/code-security/secret-scanning/working-with-secret-scanning-and-push-protection/working-with-push-protection-from-the-command-line#resolving-a-blocked-push        
+remote:             
+remote:             
+remote:       —— Google OAuth Client ID ————————————————————————————        
+remote:        locations:        
+remote:          - commit: 2d8dbd489d20227afe09703281524829f6ecb90b        
+remote:            path: backend.py:27        
+remote:             
+remote:        (?) To push, remove secret from commit(s) or follow this URL to allow the secret.        
+remote:        https://github.com/AkashSuresh2675/qr_attendance/security/secret-scanning/unblock-secret/3AcsXyqiOd5LZOIIed7djUNWpsA        
+remote:             
+remote:             
+remote:       —— Google OAuth Client Secret ————————————————————————        
+remote:        locations:        
+remote:          - commit: 2d8dbd489d20227afe09703281524829f6ecb90b        
+remote:            path: backend.py:28        
+remote:             
+remote:        (?) To push, remove secret from commit(s) or follow this URL to allow the secret.        
+remote:        https://github.com/AkashSuresh2675/qr_attendance/security/secret-scanning/unblock-secret/3AcsXxZe6AQuYkoDBeiMDzwC5Uk        
+remote:             
+remote: 
+remote: 
+To https://github.com/AkashSuresh2675/qr_attendance.git
+ ! [remote rejected] main -> main (push declined due to repository rule violations)
+error: failed to push some refs to 'https://github.com/AkashSuresh2675/qr_attendance.git'

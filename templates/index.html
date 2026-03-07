@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart QR Attendance | Home</title>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</head>
+
+<body class="min-h-screen flex items-center justify-center font-['Inter'] relative overflow-hidden text-slate-100">
+
+    <!-- Animated Gradient Background via Tailwind -->
+    <div class="absolute inset-0 bg-gradient-to-br from-indigo-950 via-purple-900 to-indigo-900 z-0"></div>
+    <div
+        class="absolute inset-0 opacity-30 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-400 via-transparent to-transparent z-0">
+    </div>
+
+    <div class="relative z-10 w-full max-w-md p-6">
+        <div class="text-center mb-10">
+            <h1
+                class="text-4xl md:text-5xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-indigo-200 to-purple-200 drop-shadow-sm tracking-tight">
+                🎓 Smart Attendance
+            </h1>
+            <p class="text-indigo-200/80 text-lg">Modern, seamless student tracking.</p>
+        </div>
+
+        <!-- Glass Card -->
+        <main
+            class="backdrop-blur-xl bg-white/10 border border-white/20 p-8 rounded-3xl shadow-2xl fade-in transition-all duration-300 hover:shadow-indigo-500/20">
+            <div class="text-center">
+                <p class="mb-8 text-indigo-100/90 text-[1.05rem] leading-relaxed">
+                    Please sign in with your Google Workspace account to securely access your dashboard.
+                </p>
+                <a href="/google_login"
+                    class="group flex items-center justify-center gap-4 w-full bg-white text-slate-800 hover:bg-slate-50 font-semibold py-3.5 px-6 rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"
+                        class="w-6 h-6 transform group-hover:scale-110 transition-transform duration-300">
+                        <path fill="#FFC107"
+                            d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24c0,11.045,8.955,20,20,20c11.045,0,20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z" />
+                        <path fill="#FF3D00"
+                            d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z" />
+                        <path fill="#4CAF50"
+                            d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.202,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z" />
+                        <path fill="#1976D2"
+                            d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571c0.001-0.001,0.002-0.001,0.003-0.002l6.19,5.238C36.971,39.205,44,34,44,24C44,22.659,43.862,21.35,43.611,20.083z" />
+                    </svg>
+                    Continue with Google
+                </a>
+            </div>
+        </main>
+
+        <p class="text-center mt-8 text-sm text-indigo-300/60 font-medium">
+            Secure, fast, and reliable tracking.
+        </p>
+    </div>
+</body>
+
+</html>
