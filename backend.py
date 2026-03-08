@@ -105,6 +105,9 @@ def init_db():
     conn.commit()
     conn.close()
 
+# Ensure the database and tables are created when running via Gunicorn
+init_db()
+
 # --- DECORATORS ---
 def login_required(f):
     @functools.wraps(f)
