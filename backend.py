@@ -24,6 +24,10 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# Allow HTTP transport for OAuth testing over ngrok/duckdns
+os.environ['AUTHLIB_INSECURE_TRANSPORT'] = '1'
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+
 # --- OAUTH SETUP ---
 oauth = OAuth(app)
 google = oauth.register(
@@ -143,52 +147,56 @@ def google_login():
 
 @app.route('/google_callback')
 def google_callback():
-    token = google.authorize_access_token()
-    user_info = token.get('userinfo')
-    
-    email = user_info['email']
-    name = user_info.get('name', 'Unknown')
-    
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    
-    # Query the teachers table to dynamically determine the role
-    cursor.execute("SELECT * FROM teachers WHERE email = ?", (email,))
-    teacher_record = cursor.fetchone()
-    
-    resolved_role = 'teacher' if teacher_record else 'student'
+    try:
+        token = google.authorize_access_token()
+        user_info = token.get('userinfo')
+        
+        email = user_info['email']
+        name = user_info.get('name', 'Unknown')
+        
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        
+        # Query the teachers table to dynamically determine the role
+        cursor.execute("SELECT * FROM teachers WHERE email = ?", (email,))
+        teacher_record = cursor.fetchone()
+        
+        resolved_role = 'teacher' if teacher_record else 'student'
 
-    # Retrieve or create user in users wrapper table
-    cursor.execute("SELECT id, role, name FROM users WHERE email = ?", (email,))
-    user = cursor.fetchone()
-    
-    if not user:
-        cursor.execute("INSERT INTO users (name, email, role) VALUES (?, ?, ?)", (name, email, resolved_role))
-        user_id = cursor.lastrowid
+        # Retrieve or create user in users wrapper table
+        cursor.execute("SELECT id, role, name FROM users WHERE email = ?", (email,))
+        user = cursor.fetchone()
         
-        # Also create student record if resolved as student
-        if resolved_role == 'student':
-            cursor.execute("INSERT INTO students (name, email) VALUES (?, ?)", (name, email))
-    else:
-        user_id = user[0]
-        name = user[2]
+        if not user:
+            cursor.execute("INSERT INTO users (name, email, role) VALUES (?, ?, ?)", (name, email, resolved_role))
+            user_id = cursor.lastrowid
+            
+            # Also create student record if resolved as student
+            if resolved_role == 'student':
+                cursor.execute("INSERT INTO students (name, email) VALUES (?, ?)", (name, email))
+        else:
+            user_id = user[0]
+            name = user[2]
+            
+            # Optionally update the user's role in the DB to stay synchronized if their status changed
+            if user[1] != resolved_role:
+                cursor.execute("UPDATE users SET role = ? WHERE id = ?", (resolved_role, user_id))
+            
+        conn.commit()
+        conn.close()
         
-        # Optionally update the user's role in the DB to stay synchronized if their status changed
-        if user[1] != resolved_role:
-            cursor.execute("UPDATE users SET role = ? WHERE id = ?", (resolved_role, user_id))
+        session['user_id'] = user_id
+        session['email'] = email
+        session['role'] = resolved_role
+        session['name'] = name
         
-    conn.commit()
-    conn.close()
-    
-    session['user_id'] = user_id
-    session['email'] = email
-    session['role'] = resolved_role
-    session['name'] = name
-    
-    if resolved_role == 'teacher':
-        return redirect(url_for('teacher_dashboard'))
-    else:
-        return redirect(url_for('student_dashboard'))
+        if resolved_role == 'teacher':
+            return redirect(url_for('teacher_dashboard'))
+        else:
+            return redirect(url_for('student_dashboard'))
+    except Exception as e:
+        import traceback
+        return jsonify({"error": "Internal Server Error", "message": str(e), "traceback": traceback.format_exc()}), 500
 
 @app.route('/logout')
 def logout():
