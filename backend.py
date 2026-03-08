@@ -123,6 +123,30 @@ def teacher_required(f):
     @functools.wraps(f)
     def decorated_function(*args, **kwargs):
         if 'user_id' not in session or session.get('role') != 'teacher':
+            return jsonify({"error": "Unauthorized Access. Teacher role required."}), 403
+        return f(*args, **kwargs)
+    return decorated_function
+
+def student_required(f):
+    @functools.wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session or session.get('role') != 'student':
+            return jsonify({"error": "Unauthorized Access. Student role required."}), 403
+        return f(*args, **kwargs)
+    return decorated_function
+
+def admin_required(f):
+    @functools.wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session or session.get('role') != 'admin':
+            return jsonify({"error": "Unauthorized Access. Admin role required."}), 403
+        return f(*args, **kwargs)
+    return decorated_function
+
+def teacher_required(f):
+    @functools.wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session or session.get('role') != 'teacher':
             return jsonify({"error": "Unauthorized Access"}), 403
         return f(*args, **kwargs)
     return decorated_function
@@ -140,9 +164,15 @@ def student_required(f):
 @app.route('/login')
 def login():
     if 'user_id' in session:
-        if session.get('role') == 'teacher':
+        role = session.get('role')
+        if role == 'teacher':
             return redirect(url_for('teacher_dashboard'))
-        return redirect(url_for('student_dashboard'))
+        elif role == 'admin':
+            return redirect(url_for('admin_dashboard'))
+        elif role == 'student':
+            return redirect(url_for('student_dashboard'))
+        else:
+            return redirect(url_for('portal_selection'))
     return render_template('index.html')
 
 @app.route('/google_login')
@@ -192,13 +222,10 @@ def google_callback():
         
         session['user_id'] = user_id
         session['email'] = email
-        session['role'] = resolved_role
         session['name'] = name
+        # We don't set session['role'] here anymore so they are forced to choose
         
-        if resolved_role == 'teacher':
-            return redirect(url_for('teacher_dashboard'))
-        else:
-            return redirect(url_for('student_dashboard'))
+        return redirect(url_for('portal_selection'))
     except Exception as e:
         import traceback
         return jsonify({"error": "Internal Server Error", "message": str(e), "traceback": traceback.format_exc()}), 500
@@ -208,6 +235,28 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
+# --- PORTAL SELECTION ---
+@app.route('/portal_selection')
+@login_required
+def portal_selection():
+    return render_template('portal_selection.html')
+
+@app.route('/select_portal', methods=['POST'])
+@login_required
+def select_portal():
+    role = request.form.get('role')
+    if role in ['teacher', 'student', 'admin']:
+        session['role'] = role
+        
+        if role == 'teacher':
+            return redirect(url_for('teacher_dashboard'))
+        elif role == 'admin':
+            return redirect(url_for('admin_dashboard'))
+        else:
+            return redirect(url_for('student_dashboard'))
+            
+    return redirect(url_for('portal_selection'))
+
 # --- DASHBOARDS ---
 @app.route('/teacher_dashboard')
 @teacher_required
@@ -215,9 +264,14 @@ def teacher_dashboard():
     return render_template('teacher_portal.html')
 
 @app.route('/student_dashboard')
-@login_required
+@student_required
 def student_dashboard():
     return render_template('mark.html')
+
+@app.route('/admin_dashboard')
+@admin_required
+def admin_dashboard():
+    return "<h1>Admin Portal Demo</h1><p>Welcome to the admin dashboard.</p><a href='/logout'>Logout</a> | <a href='/portal_selection'>Change Portal</a>"
 
 # --- API ROUTES ---
 
