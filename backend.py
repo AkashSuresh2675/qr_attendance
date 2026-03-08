@@ -28,7 +28,7 @@ load_dotenv()
 oauth = OAuth(app)
 google = oauth.register(
     name='google',
-    client_id=os.environ.get('GOOGLE_CLIENT_ID', '7774969418-u9e3mvqjcfbqj3jd3skubbl546b59bug.apps.googleusercontent.com'),
+    client_id=os.environ.get('GOOGLE_CLIENT_ID', 'YOUR_CLIENT_ID_HERE'),
     client_secret=os.environ.get('GOOGLE_CLIENT_SECRET', 'YOUR_SECRET_HERE'),
     server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
     client_kwargs={

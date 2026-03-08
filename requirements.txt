@@ -5,3 +5,4 @@ authlib
 requests
 openpyxl
 gunicorn
+python-dotenv
