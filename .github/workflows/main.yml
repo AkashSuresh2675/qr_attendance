@@ -1,1 +1,43 @@
-慮敭›敄汰祯䘠慬歳䄠灰琠⁯坁੓漊㩮 瀠獵㩨 †戠慲据敨㩳 ††ⴠ洠楡੮樊扯㩳 戠極摬愭摮搭灥潬㩹 †爠湵⵳湯›扵湵畴氭瑡獥ੴ †猠整獰਺†††‭慮敭›桃捥潫瑵爠灥獯瑩牯੹††††獵獥›捡楴湯⽳档捥潫瑵癀ਲ਼ ††ⴠ渠浡㩥䰠杯湩琠⁯潄正牥䠠扵 †††甠敳㩳搠捯敫⽲潬楧⵮捡楴湯癀ਲ††††楷桴਺†††††獵牥慮敭›笤⁻敳牣瑥⹳佄䭃剅啟䕓乒䵁⁅絽 ††††瀠獡睳牯㩤␠筻猠捥敲獴䐮䍏䕋归䅐卓佗䑒素੽ ††ⴠ渠浡㩥䈠極摬䐠捯敫⁲浉条੥††††畲㩮簠 ††††搠捯敫⁲畢汩⁤琭␠筻猠捥敲獴䐮䍏䕋归单剅䅎䕍素⽽牱愭瑴湥慤据⁥ਮ ††ⴠ渠浡㩥倠獵⁨潄正牥䤠慭敧 †††爠湵›੼†††††潤正牥瀠獵⁨笤⁻敳牣瑥⹳佄䭃剅啟䕓乒䵁⁅絽焯⵲瑡整摮湡散ਊ†††‭慮敭›敄汰祯琠⁯䍅ਲ††††獵獥›灡汰扥祯猯桳愭瑣潩䁮ぶㄮ㜮 †††眠瑩㩨 ††††栠獯㩴␠筻猠捥敲獴䠮协⁔絽 ††††甠敳湲浡㩥␠筻猠捥敲獴售䕓乒䵁⁅絽 ††††欠祥›笤⁻敳牣瑥⹳卓彈䕋⁙絽 ††††猠牣灩㩴簠 搠捯敫⁲異汬␠筻猠捥敲獴䐮䍏䕋归单剅䅎䕍素⽽牱愭瑴湥慤据੥†潤正牥猠潴⁰牱愭灰簠⁼牴敵 搠捯敫⁲浲焠⵲灡⁰籼琠畲੥†潤正牥爠湵ⴠ⁤瀭㔠〰㨰〵〰尠 †ⴠ⁥佇䝏䕌䍟䥌久彔䑉∽笤⁻敳牣瑥⹳佇䝏䕌䍟䥌久彔䑉素≽尠 †ⴠ⁥佇䝏䕌䍟䥌久彔䕓剃呅∽笤⁻敳牣瑥⹳佇䝏䕌䍟䥌久彔䕓剃呅素≽尠 †ⴠ渭浡⁥牱愭灰␠筻猠捥敲獴䐮䍏䕋归单剅䅎䕍素⽽牱愭瑴湥慤据੥ 
+name: Deploy Flask App to AWS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build Docker Image
+        run: |
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/qr-attendance .
+
+      - name: Push Docker Image
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/qr-attendance
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            docker pull ${{ secrets.DOCKER_USERNAME }}/qr-attendance
+            docker stop qr-app || true
+            docker rm qr-app || true
+            docker run -d -p 5000:5000 --name qr-app \
+              -e GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}" \
+              -e GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET }}" \
+              ${{ secrets.DOCKER_USERNAME }}/qr-attendance
