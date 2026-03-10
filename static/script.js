@@ -103,6 +103,10 @@ function initTeacherDashboard() {
     const stopScanBtn = document.getElementById('stopScanBtn');
     const toastContainer = document.getElementById('toastContainer');
 
+    const resumeScanBtn = document.getElementById('resumeScanBtn');
+    const endSessionBtn = document.getElementById('endSessionBtn');
+    const sessionControls = document.getElementById('sessionControls');
+
     let currentSessionId = null;
     let scanCount = 0;
 
@@ -145,6 +149,8 @@ function initTeacherDashboard() {
 
                 generateBtn.classList.add('hidden');
                 if (scanContainer) scanContainer.classList.remove('hidden');
+                if (sessionControls) sessionControls.classList.remove('hidden');
+                if (resumeScanBtn) resumeScanBtn.classList.add('hidden');
 
                 startScanner();
                 loadDashboard(tableBody, currentSessionId);
@@ -160,6 +166,37 @@ function initTeacherDashboard() {
     if (stopScanBtn) {
         stopScanBtn.addEventListener('click', () => {
             stopScanner();
+            if (scanContainer) scanContainer.classList.add('hidden');
+            if (currentSessionId && resumeScanBtn) resumeScanBtn.classList.remove('hidden');
+        });
+    }
+
+    if (resumeScanBtn) {
+        resumeScanBtn.addEventListener('click', () => {
+            if (currentSessionId) {
+                if (scanContainer) scanContainer.classList.remove('hidden');
+                startScanner();
+                resumeScanBtn.classList.add('hidden');
+            }
+        });
+    }
+
+    if (endSessionBtn) {
+        endSessionBtn.addEventListener('click', () => {
+            if (!confirm("Are you sure you want to end this session?")) return;
+
+            stopScanner();
+            currentSessionId = null;
+
+            if (sessionInfo) sessionInfo.classList.add('hidden');
+            if (sessionControls) sessionControls.classList.add('hidden');
+            if (scanContainer) scanContainer.classList.add('hidden');
+
+            if (generateBtn) {
+                generateBtn.classList.remove('hidden');
+                generateBtn.disabled = false;
+                generateBtn.textContent = 'Start New Session & Open Scanner';
+            }
         });
     }
 
@@ -203,7 +240,13 @@ function initTeacherDashboard() {
         scannedCache = {}; // Clear cache on new session
         if (cameraLoading) cameraLoading.classList.remove("hidden");
 
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(function (stream) {
+        navigator.mediaDevices.getUserMedia({
+            video: {
+                facingMode: "environment",
+                width: { ideal: 1920 },
+                height: { ideal: 1080 }
+            }
+        }).then(function (stream) {
             video.srcObject = stream;
             video.setAttribute("playsinline", true);
             video.play();
