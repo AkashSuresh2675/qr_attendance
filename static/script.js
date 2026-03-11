@@ -118,6 +118,8 @@ function initTeacherDashboard() {
     let requestAnimationFrameId = null;
     let isScanning = false;
     let scannedCache = {}; // {roll_no: timestamp}
+    let lastScanTime = 0;
+    let lastCode = null;
 
     if (exportBtn) {
         exportBtn.addEventListener('click', () => {
@@ -240,13 +242,21 @@ function initTeacherDashboard() {
         scannedCache = {}; // Clear cache on new session
         if (cameraLoading) cameraLoading.classList.remove("hidden");
 
-        navigator.mediaDevices.getUserMedia({
+        const constraints = {
             video: {
                 facingMode: "environment",
                 width: { ideal: 1920 },
                 height: { ideal: 1080 }
             }
-        }).then(function (stream) {
+        };
+
+        // Optimize resolution request for portrait mode on mobile
+        if (window.innerHeight > window.innerWidth) {
+            constraints.video.width = { ideal: 1080 };
+            constraints.video.height = { ideal: 1920 };
+        }
+
+        navigator.mediaDevices.getUserMedia(constraints).then(function (stream) {
             video.srcObject = stream;
             video.setAttribute("playsinline", true);
             video.play();
@@ -274,20 +284,68 @@ function initTeacherDashboard() {
 
             canvasElement.height = video.videoHeight;
             canvasElement.width = video.videoWidth;
-            canvas.drawImage(video, 0, 0, canvasElement.width, canvasElement.height);
+            canvas.clearRect(0, 0, canvasElement.width, canvasElement.height); // clear to let native video show
 
-            var imageData = canvas.getImageData(0, 0, canvasElement.width, canvasElement.height);
-            var code = jsQR(imageData.data, imageData.width, imageData.height, {
-                inversionAttempts: "dontInvert",
-            });
+            const now = Date.now();
+            if (now - lastScanTime > 150) { // Faster scan rate for smoothness (~6.6 FPS)
+                lastScanTime = now;
 
-            if (code) {
-                drawLine(code.location.topLeftCorner, code.location.topRightCorner, "#10b981");
-                drawLine(code.location.topRightCorner, code.location.bottomRightCorner, "#10b981");
-                drawLine(code.location.bottomRightCorner, code.location.bottomLeftCorner, "#10b981");
-                drawLine(code.location.bottomLeftCorner, code.location.topLeftCorner, "#10b981");
+                // Downscale for jsQR performance
+                const scale = Math.min(1, 600 / video.videoWidth);
+                const scanWidth = Math.floor(video.videoWidth * scale);
+                const scanHeight = Math.floor(video.videoHeight * scale);
 
-                processQRCode(code.data, code.location.topLeftCorner);
+                if (!window.scanCanvas) {
+                    window.scanCanvas = document.createElement("canvas");
+                    window.scanCtx = window.scanCanvas.getContext("2d", { willReadFrequently: true });
+                }
+                window.scanCanvas.width = scanWidth;
+                window.scanCanvas.height = scanHeight;
+                window.scanCtx.drawImage(video, 0, 0, scanWidth, scanHeight);
+
+                var imageData = window.scanCtx.getImageData(0, 0, scanWidth, scanHeight);
+                var code = jsQR(imageData.data, scanWidth, scanHeight, {
+                    inversionAttempts: "dontInvert",
+                });
+
+                if (code) {
+                    let displayName = null;
+                    try {
+                        let parsed = JSON.parse(code.data);
+                        if (parsed.name && parsed.roll_no) displayName = parsed.name;
+                    } catch (e) { }
+
+                    const invScale = 1 / scale;
+                    code.location.topLeftCorner.x *= invScale;
+                    code.location.topLeftCorner.y *= invScale;
+                    code.location.topRightCorner.x *= invScale;
+                    code.location.topRightCorner.y *= invScale;
+                    code.location.bottomRightCorner.x *= invScale;
+                    code.location.bottomRightCorner.y *= invScale;
+                    code.location.bottomLeftCorner.x *= invScale;
+                    code.location.bottomLeftCorner.y *= invScale;
+
+                    lastCode = Object.assign({}, code, { displayName });
+                    processQRCode(code.data);
+                } else {
+                    lastCode = null;
+                }
+            }
+
+            if (lastCode) {
+                drawLine(lastCode.location.topLeftCorner, lastCode.location.topRightCorner, "#10b981");
+                drawLine(lastCode.location.topRightCorner, lastCode.location.bottomRightCorner, "#10b981");
+                drawLine(lastCode.location.bottomRightCorner, lastCode.location.bottomLeftCorner, "#10b981");
+                drawLine(lastCode.location.bottomLeftCorner, lastCode.location.topLeftCorner, "#10b981");
+
+                if (lastCode.displayName) {
+                    canvas.font = "bold 24px Inter, sans-serif";
+                    canvas.fillStyle = "#10b981";
+                    canvas.shadowColor = "rgba(0,0,0,0.8)";
+                    canvas.shadowBlur = 4;
+                    canvas.fillText(lastCode.displayName, lastCode.location.topLeftCorner.x, lastCode.location.topLeftCorner.y - 14);
+                    canvas.shadowBlur = 0;
+                }
             }
         }
         requestAnimationFrameId = requestAnimationFrame(tick);
@@ -321,23 +379,13 @@ function initTeacherDashboard() {
         }, 3000);
     }
 
-    async function processQRCode(decodedText, boxPosition) {
+    async function processQRCode(decodedText) {
         try {
             const studentData = JSON.parse(decodedText);
             if (!studentData.roll_no) return;
 
             const now = Date.now();
             const lastScanned = scannedCache[studentData.roll_no] || 0;
-
-            if (boxPosition) {
-                canvas.font = "bold 18px Inter, sans-serif";
-                canvas.fillStyle = "#10b981";
-                // shadow to make it readable
-                canvas.shadowColor = "rgba(0,0,0,0.8)";
-                canvas.shadowBlur = 4;
-                canvas.fillText(studentData.name, boxPosition.x, boxPosition.y - 10);
-                canvas.shadowBlur = 0; // reset
-            }
 
             if (now - lastScanned < 5000) return; // 5 second cooling period
 
