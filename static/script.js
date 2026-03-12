@@ -503,9 +503,14 @@ async function loadDashboard(tableBody, sessionId = null) {
         if (!response.ok) throw new Error('Failed to fetch data');
         const result = await response.json();
 
+        // Reload analytics if on global dashboard
+        if (!sessionId) {
+            loadAnalytics();
+        }
+
         tableBody.innerHTML = '';
         if (result.data.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="4" class="text-center">No attendance records found.</td></tr>';
+            tableBody.innerHTML = '<tr><td colspan="4" class="text-center p-8 text-slate-400 italic">No attendance records found.</td></tr>';
             return;
         }
 
@@ -513,18 +518,13 @@ async function loadDashboard(tableBody, sessionId = null) {
             const date = new Date(record.timestamp);
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td><strong>${escapeHtml(record.name)}</strong><br><small style="color:#94a3b8">${escapeHtml(record.class)}</small></td>
-                <td><span class="device-hash">${escapeHtml(record.roll_no)}</span></td>
-                <td>${date.toLocaleString()}</td>
-                <td><span class="status-success" style="padding: 2px 6px; border-radius: 4px;">Present ${record.session_name ? 'in ' + escapeHtml(record.session_name) : ''}</span></td>
+                <td class="p-4 border-b border-slate-100"><strong>${escapeHtml(record.name)}</strong><br><small style="color:#94a3b8">${escapeHtml(record.class)}</small></td>
+                <td class="p-4 border-b border-slate-100"><span class="font-mono text-slate-600 bg-slate-100 px-2 py-1 rounded-md text-xs">${escapeHtml(record.roll_no)}</span></td>
+                <td class="p-4 border-b border-slate-100 hidden sm:table-cell text-slate-500">${date.toLocaleString()}</td>
+                <td class="p-4 border-b border-slate-100 text-right"><span class="bg-green-100 text-green-700 font-semibold px-2 py-1 rounded-md text-xs">Present ${record.session_name ? 'in ' + escapeHtml(record.session_name) : ''}</span></td>
             `;
             tableBody.appendChild(row);
         });
-
-        // Reload analytics if on global dashboard
-        if (!sessionId) {
-            loadAnalytics();
-        }
     } catch (error) {
         console.error(error);
         tableBody.innerHTML = '<tr><td colspan="4" class="text-center status-error">Error loading data.</td></tr>';
