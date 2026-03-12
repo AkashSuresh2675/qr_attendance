@@ -536,6 +536,167 @@ function escapeHtml(unsafe) {
     return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 
+function switchAdminTab(tabName) {
+    document.querySelectorAll('.admin-tab-content').forEach(el => el.classList.add('hidden'));
+    document.querySelectorAll('.admin-tab-btn').forEach(btn => {
+        btn.classList.remove('border-indigo-500', 'text-indigo-600');
+        btn.classList.add('border-transparent', 'text-slate-500');
+    });
+
+    document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+    const activeBtn = document.getElementById(`tab-btn-${tabName}`);
+    activeBtn.classList.remove('border-transparent', 'text-slate-500');
+    activeBtn.classList.add('border-indigo-500', 'text-indigo-600');
+}
+
+async function initAdminDashboard() {
+    try {
+        const statsRes = await fetch(`${API_BASE_URL}/api/admin/system_stats`);
+        if (statsRes.ok) {
+            const stats = await statsRes.json();
+            document.getElementById('stat-students').textContent = stats.students;
+            document.getElementById('stat-teachers').textContent = stats.teachers;
+            document.getElementById('stat-scans').textContent = stats.scans;
+        }
+
+        loadAdminAttendance();
+        loadAdminTeachers();
+        loadAdminStudents();
+
+        const addTeacherForm = document.getElementById('addTeacherForm');
+        if (addTeacherForm) {
+            addTeacherForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const name = document.getElementById('newTeacherName').value;
+                const email = document.getElementById('newTeacherEmail').value;
+
+                const res = await fetch(`${API_BASE_URL}/api/admin/teachers`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email })
+                });
+
+                if (res.ok) {
+                    addTeacherForm.reset();
+                    loadAdminTeachers();
+                    alert("Teacher authorized successfully.");
+                } else {
+                    const err = await res.json();
+                    alert(err.error || "Failed to add teacher");
+                }
+            });
+        }
+    } catch (e) {
+        console.error("Admin dashboard initialization error", e);
+    }
+}
+
+async function loadAdminAttendance() {
+    const tableBody = document.getElementById('adminAttendanceTableBody');
+    if (!tableBody) return;
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/admin/attendance`);
+        const result = await res.json();
+
+        tableBody.innerHTML = '';
+        if (result.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-400 italic">No attendance records found yet.</td></tr>';
+            return;
+        }
+
+        result.forEach(record => {
+            const date = new Date(record.timestamp);
+            tableBody.innerHTML += `
+                <tr>
+                    <td class="p-4 border-b border-slate-100 font-medium text-slate-800">${escapeHtml(record.name)}</td>
+                    <td class="p-4 border-b border-slate-100"><span class="font-mono text-slate-600 bg-slate-100 px-2 py-1 rounded-md text-xs">${escapeHtml(record.roll_no)}</span></td>
+                    <td class="p-4 border-b border-slate-100 text-slate-600">${escapeHtml(record.session)}</td>
+                    <td class="p-4 border-b border-slate-100 text-right text-slate-500">${date.toLocaleString()}</td>
+                </tr>
+            `;
+        });
+    } catch (e) {
+        tableBody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-red-500 italic">Error loading records.</td></tr>';
+    }
+}
+
+async function loadAdminTeachers() {
+    const tableBody = document.getElementById('adminTeachersTableBody');
+    if (!tableBody) return;
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/admin/teachers`);
+        const result = await res.json();
+
+        tableBody.innerHTML = '';
+        if (result.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-slate-400 italic">No teachers found.</td></tr>';
+            return;
+        }
+
+        result.forEach(record => {
+            tableBody.innerHTML += `
+                <tr>
+                    <td class="p-4 border-b border-slate-100 font-medium">${escapeHtml(record.name)}</td>
+                    <td class="p-4 border-b border-slate-100 text-slate-600">${escapeHtml(record.email)}</td>
+                    <td class="p-4 border-b border-slate-100 text-right">
+                        <button onclick="deleteTeacher(${record.id})" class="text-rose-500 hover:text-rose-700 font-semibold px-2 py-1 rounded-md hover:bg-rose-50 transition-colors text-sm">Remove Access</button>
+                    </td>
+                </tr>
+            `;
+        });
+    } catch (e) { }
+}
+
+async function loadAdminStudents() {
+    const tableBody = document.getElementById('adminStudentsTableBody');
+    if (!tableBody) return;
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/admin/students`);
+        const result = await res.json();
+
+        tableBody.innerHTML = '';
+        if (result.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="4" class="p-8 text-center text-slate-400 italic">No students registered.</td></tr>';
+            return;
+        }
+
+        result.forEach(record => {
+            tableBody.innerHTML += `
+                <tr>
+                    <td class="p-4 border-b border-slate-100 font-medium">${escapeHtml(record.name)}</td>
+                    <td class="p-4 border-b border-slate-100 text-slate-600">${escapeHtml(record.email)}</td>
+                    <td class="p-4 border-b border-slate-100">
+                        <span class="font-mono text-slate-600 bg-slate-100 px-2 py-1 rounded-md text-xs">${escapeHtml(record.roll_no)}</span>
+                        <span class="text-xs text-slate-500 block mt-1">${escapeHtml(record.class)}</span>
+                    </td>
+                    <td class="p-4 border-b border-slate-100 text-right">
+                        <button onclick="deleteStudent(${record.id})" class="text-rose-500 hover:text-rose-700 font-semibold px-2 py-1 rounded-md hover:bg-rose-50 transition-colors text-sm">Delete Profile</button>
+                    </td>
+                </tr>
+            `;
+        });
+    } catch (e) { }
+}
+
+async function deleteTeacher(id) {
+    if (!confirm("Are you sure you want to remove this teacher? They will become a regular student.")) return;
+    try {
+        await fetch(`${API_BASE_URL}/api/admin/teachers/${id}`, { method: 'DELETE' });
+        loadAdminTeachers();
+    } catch (e) { console.error(e); }
+}
+
+async function deleteStudent(id) {
+    if (!confirm("Are you sure you want to delete this student's profile? This action is permanent!")) return;
+    try {
+        await fetch(`${API_BASE_URL}/api/admin/students/${id}`, { method: 'DELETE' });
+        loadAdminStudents();
+    } catch (e) { console.error(e); }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     const path = window.location.pathname;
     setupLogoutBtn();
@@ -545,5 +706,7 @@ document.addEventListener('DOMContentLoaded', () => {
         initTeacherDashboard();
     } else if (path.includes('student_dashboard') || path.includes('mark')) {
         initStudentView();
+    } else if (path.includes('admin')) {
+        initAdminDashboard();
     }
 });

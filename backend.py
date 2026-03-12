@@ -98,10 +98,25 @@ def init_db():
         )
     """)
 
+    # Create admins
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS admins (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL
+        )
+    """)
+
     # Seed the initial teacher record securely
     cursor.execute("""
         INSERT OR IGNORE INTO teachers (name, email)
         VALUES ('Akash Suresh', 'akashsuresh2027@cs.ajce.in')
+    """)
+
+    # Seed the initial admin record
+    cursor.execute("""
+        INSERT OR IGNORE INTO admins (name, email)
+        VALUES ('Akash Aggu', 'akashaggu2005@gmail.com')
     """)
 
     conn.commit()
@@ -192,11 +207,19 @@ def google_callback():
         conn = sqlite3.connect(DB_FILE)
         cursor = conn.cursor()
         
-        # Query the teachers table to dynamically determine the role
+        # Query tables to dynamically determine role
+        cursor.execute("SELECT * FROM admins WHERE email = ?", (email,))
+        admin_record = cursor.fetchone()
+
         cursor.execute("SELECT * FROM teachers WHERE email = ?", (email,))
         teacher_record = cursor.fetchone()
         
-        resolved_role = 'teacher' if teacher_record else 'student'
+        if admin_record:
+            resolved_role = 'admin'
+        elif teacher_record:
+            resolved_role = 'teacher'
+        else:
+            resolved_role = 'student'
 
         # Retrieve or create user in users wrapper table
         cursor.execute("SELECT id, role, name FROM users WHERE email = ?", (email,))
@@ -271,7 +294,123 @@ def student_dashboard():
 @app.route('/admin_dashboard')
 @admin_required
 def admin_dashboard():
-    return "<h1>Admin Portal Demo</h1><p>Welcome to the admin dashboard.</p><a href='/logout'>Logout</a> | <a href='/portal_selection'>Change Portal</a>"
+    return render_template('admin_portal.html')
+
+# --- ADMIN API ROUTES ---
+
+@app.route('/api/admin/system_stats', methods=['GET'])
+@admin_required
+def admin_system_stats():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT COUNT(*) FROM students")
+    total_students = cursor.fetchone()[0]
+    
+    cursor.execute("SELECT COUNT(*) FROM teachers")
+    total_teachers = cursor.fetchone()[0]
+    
+    cursor.execute("SELECT COUNT(*) FROM sessions")
+    total_sessions = cursor.fetchone()[0]
+
+    cursor.execute("SELECT COUNT(*) FROM attendance")
+    total_scans = cursor.fetchone()[0]
+    
+    conn.close()
+    return jsonify({
+        "students": total_students,
+        "teachers": total_teachers,
+        "sessions": total_sessions,
+        "scans": total_scans
+    }), 200
+
+@app.route('/api/admin/teachers', methods=['GET', 'POST'])
+@admin_required
+def admin_manage_teachers():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    
+    if request.method == 'GET':
+        cursor.execute("SELECT id, name, email FROM teachers ORDER BY id DESC")
+        records = cursor.fetchall()
+        conn.close()
+        return jsonify([{"id": r[0], "name": r[1], "email": r[2]} for r in records]), 200
+        
+    elif request.method == 'POST':
+        data = request.json
+        name = data.get("name", "").strip()
+        email = data.get("email", "").strip()
+        
+        if not name or not email:
+            conn.close()
+            return jsonify({"error": "Name and Email are required"}), 400
+            
+        try:
+            cursor.execute("INSERT INTO teachers (name, email) VALUES (?, ?)", (name, email))
+            # Also update the roles table if they've already signed in as a student
+            cursor.execute("UPDATE users SET role = 'teacher' WHERE email = ?", (email,))
+            conn.commit()
+            conn.close()
+            return jsonify({"message": "Teacher added successfully"}), 201
+        except sqlite3.IntegrityError:
+            conn.close()
+            return jsonify({"error": "Teacher already exists with this email"}), 409
+
+@app.route('/api/admin/teachers/<int:teacher_id>', methods=['DELETE'])
+@admin_required
+def admin_delete_teacher(teacher_id):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    
+    # Check what email it is so we can downgrade their user role
+    cursor.execute("SELECT email FROM teachers WHERE id = ?", (teacher_id,))
+    record = cursor.fetchone()
+    if record:
+        email = record[0]
+        cursor.execute("DELETE FROM teachers WHERE id = ?", (teacher_id,))
+        cursor.execute("UPDATE users SET role = 'student' WHERE email = ? AND role = 'teacher'", (email,))
+        conn.commit()
+    
+    conn.close()
+    return jsonify({"message": "Teacher removed"}), 200
+
+@app.route('/api/admin/students', methods=['GET'])
+@admin_required
+def admin_manage_students():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, name, email, roll_no, class FROM students ORDER BY id DESC")
+    records = cursor.fetchall()
+    conn.close()
+    return jsonify([{"id": r[0], "name": r[1], "email": r[2], "roll_no": r[3], "class": r[4]} for r in records]), 200
+
+@app.route('/api/admin/students/<int:student_id>', methods=['DELETE'])
+@admin_required
+def admin_delete_student(student_id):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM students WHERE id = ?", (student_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"message": "Student profile deleted"}), 200
+
+@app.route('/api/admin/attendance', methods=['GET'])
+@admin_required
+def admin_global_attendance():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute('''
+        SELECT s.name, s.roll_no, s.class, a.timestamp, se.session_name
+        FROM attendance a
+        JOIN students s ON a.roll_no = s.roll_no
+        LEFT JOIN sessions se ON a.session_id = se.id
+        ORDER BY a.timestamp DESC
+        LIMIT 500
+    ''')
+    records = cursor.fetchall()
+    conn.close()
+    
+    return jsonify([{"name": r[0], "roll_no": r[1], "class": r[2], "timestamp": r[3], "session": r[4] or "Manual"} for r in records]), 200
 
 # --- API ROUTES ---
 

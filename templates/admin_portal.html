@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart QR Attendance | Admin Portal</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body class="min-h-screen bg-slate-50 font-['Inter'] text-slate-800">
+
+    <!-- Top Navigation -->
+    <nav class="bg-slate-900 border-b border-slate-800 sticky top-0 z-50 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center gap-3">
+                    <div class="bg-indigo-500 p-2 rounded-lg text-white font-bold shadow-sm">QA</div>
+                    <div>
+                        <h1 class="font-bold text-lg text-white leading-tight">Admin Console</h1>
+                        <p class="text-xs font-medium text-slate-400">System Management</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <button onclick="window.location.href='/logout'"
+                        class="bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 font-medium py-2 px-4 rounded-lg transition-colors duration-200 text-sm border border-rose-500/20">
+                        Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 fade-in">
+
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+            <div>
+                <h2 class="text-2xl font-bold text-slate-900">System Overview</h2>
+                <p class="text-slate-500 mt-1">Manage global records and platform access.</p>
+            </div>
+
+            <div class="flex gap-4">
+                <div class="bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-200 text-center">
+                    <p class="text-xs text-slate-500 font-bold uppercase">Students</p>
+                    <p class="text-xl font-bold text-indigo-600" id="stat-students">-</p>
+                </div>
+                <div class="bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-200 text-center">
+                    <p class="text-xs text-slate-500 font-bold uppercase">Teachers</p>
+                    <p class="text-xl font-bold text-indigo-600" id="stat-teachers">-</p>
+                </div>
+                <div class="bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-200 text-center">
+                    <p class="text-xs text-slate-500 font-bold uppercase">Total Scans</p>
+                    <p class="text-xl font-bold text-indigo-600" id="stat-scans">-</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="mb-6 border-b border-slate-200">
+            <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                <button onclick="switchAdminTab('attendance')" id="tab-btn-attendance"
+                    class="admin-tab-btn border-indigo-500 text-indigo-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                    Global Logs
+                </button>
+                <button onclick="switchAdminTab('teachers')" id="tab-btn-teachers"
+                    class="admin-tab-btn border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                    Manage Teachers
+                </button>
+                <button onclick="switchAdminTab('students')" id="tab-btn-students"
+                    class="admin-tab-btn border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+                    Manage Students
+                </button>
+            </nav>
+        </div>
+
+        <!-- Tab Contents -->
+        <div id="tab-attendance" class="admin-tab-content block">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                    <h3 class="font-bold text-slate-800">Recent Attendance Scans (System-wide)</h3>
+                </div>
+                <div class="overflow-x-auto h-[500px]">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="sticky top-0 bg-slate-50 z-10 shadow-sm border-b border-slate-200">
+                            <tr class="text-slate-500 text-xs uppercase tracking-wider">
+                                <th class="p-4 font-semibold">Student Name</th>
+                                <th class="p-4 font-semibold">Roll Number</th>
+                                <th class="p-4 font-semibold">Teacher Session</th>
+                                <th class="p-4 font-semibold text-right">Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminAttendanceTableBody" class="divide-y divide-slate-100 text-sm">
+                            <tr>
+                                <td colspan="4" class="p-8 text-center text-slate-400 italic">Loading data...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-teachers" class="admin-tab-content hidden space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+                <h3 class="font-bold text-slate-800 mb-4">Authorize New Teacher</h3>
+                <form id="addTeacherForm" class="flex flex-col sm:flex-row gap-4">
+                    <input type="text" id="newTeacherName" placeholder="Teacher Name" required
+                        class="flex-1 bg-slate-50 border border-slate-200 text-slate-900 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 transition-colors">
+                    <input type="email" id="newTeacherEmail" placeholder="Teacher Email (Google Account)" required
+                        class="flex-1 bg-slate-50 border border-slate-200 text-slate-900 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2.5 transition-colors">
+                    <button type="submit"
+                        class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2.5 px-6 rounded-lg transition-colors whitespace-nowrap">
+                        Grant Access
+                    </button>
+                </form>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <table class="w-full text-left border-collapse">
+                    <thead
+                        class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                        <tr>
+                            <th class="p-4 font-semibold">Name</th>
+                            <th class="p-4 font-semibold">Email</th>
+                            <th class="p-4 font-semibold text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminTeachersTableBody" class="divide-y divide-slate-100 text-sm">
+                        <tr>
+                            <td colspan="3" class="p-8 text-center text-slate-400 italic">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="tab-students" class="admin-tab-content hidden">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                    <h3 class="font-bold text-slate-800">All Registered Students</h3>
+                    <p class="text-xs text-slate-500">Delete invalid or duplicate profiles here.</p>
+                </div>
+                <div class="overflow-x-auto h-[600px]">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="sticky top-0 bg-slate-50 z-10 shadow-sm border-b border-slate-200">
+                            <tr class="text-slate-500 text-xs uppercase tracking-wider">
+                                <th class="p-4 font-semibold">Name</th>
+                                <th class="p-4 font-semibold">Email</th>
+                                <th class="p-4 font-semibold">Roll No & Class</th>
+                                <th class="p-4 font-semibold text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminStudentsTableBody" class="divide-y divide-slate-100 text-sm">
+                            <tr>
+                                <td colspan="4" class="p-8 text-center text-slate-400 italic">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+
+</html>
