@@ -34,6 +34,7 @@ async function initStudentView() {
             // Auto generate QR if profile completes
             if (data.roll_no && data.class) {
                 generateStudentQr(data.name, data.roll_no, data.class);
+                loadStudentAnalytics(); // Load stats if profile exists
             }
         }
     } catch (e) {
@@ -60,6 +61,7 @@ async function initStudentView() {
 
             if (response.ok) {
                 generateStudentQr(name, roll, studentClass);
+                loadStudentAnalytics(); // Reload analytics after profile update
                 statusElement.textContent = "✅ Profile updated!";
                 statusElement.classList.remove('hidden', 'status-error');
                 statusElement.classList.add('status-success');
@@ -86,6 +88,68 @@ async function initStudentView() {
         new QRCode(studentQrcode, { text: qrData, width: 256, height: 256, colorDark: "#1e1b4b", colorLight: "#ffffff", correctLevel: QRCode.CorrectLevel.M });
         qrOutputContainer.classList.remove('hidden');
         qrOutputContainer.classList.add('bounce-in');
+    }
+}
+
+async function loadStudentAnalytics() {
+    const loadingElem = document.getElementById('analyticsLoading');
+    const contentElem = document.getElementById('analyticsContent');
+    const timelineElem = document.getElementById('historyTimeline');
+
+    if (!loadingElem || !contentElem || !timelineElem) return;
+
+    try {
+        const res = await fetch(`${API_BASE_URL}/api/student/my_attendance`);
+        if (!res.ok) {
+            loadingElem.textContent = "Complete your profile to view attendance statistics.";
+            return;
+        }
+
+        const data = await res.json();
+
+        loadingElem.classList.add('hidden');
+        contentElem.classList.remove('hidden');
+
+        // Update Stats
+        document.getElementById('statAttended').textContent = data.stats.attended;
+        document.getElementById('statTotal').textContent = data.stats.total_sessions;
+        document.getElementById('progressPercent').textContent = `${data.stats.percentage}%`;
+
+        // Animate Circle
+        const circle = document.getElementById('progressCircle');
+        if (circle) {
+            // formula: 100 - percentage
+            const offset = 100 - data.stats.percentage;
+            setTimeout(() => {
+                circle.style.strokeDasharray = `${data.stats.percentage}, 100`;
+            }, 100);
+        }
+
+        // Render Timeline
+        timelineElem.innerHTML = '';
+        if (data.history.length === 0) {
+            timelineElem.innerHTML = '<p class="text-slate-500 italic py-4 text-center">No attendance scans recorded yet. Show your QR to a teacher to get started!</p>';
+        } else {
+            data.history.forEach((record, index) => {
+                const date = new Date(record.timestamp);
+
+                timelineElem.innerHTML += `
+                    <div class="flex items-start gap-4 p-3 rounded-xl border border-slate-100 hover:bg-slate-50 transition-colors">
+                        <div class="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 text-green-600 font-bold">
+                            ✓
+                        </div>
+                        <div>
+                            <p class="font-bold text-slate-800">${escapeHtml(record.session)}</p>
+                            <p class="text-xs text-slate-500 font-medium">${date.toLocaleString()}</p>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+    } catch (e) {
+        console.error("Error loading student stats", e);
+        loadingElem.textContent = "Error loading statistics.";
     }
 }
 

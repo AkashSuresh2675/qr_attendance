@@ -428,6 +428,54 @@ def get_student_profile():
         return jsonify({"name": record[0], "roll_no": record[1], "class": record[2]}), 200
     return jsonify({"error": "Profile not found"}), 404
 
+@app.route('/api/student/my_attendance', methods=['GET'])
+@student_required
+def get_my_attendance():
+    email = session.get('email')
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT roll_no FROM students WHERE email = ?", (email,))
+    student = cursor.fetchone()
+    
+    if not student or not student[0]:
+        conn.close()
+        return jsonify({"error": "Profile incomplete. Please generate a QR code first."}), 404
+        
+    roll_no = student[0]
+    
+    # Total sessions ever created
+    cursor.execute("SELECT COUNT(*) FROM sessions")
+    total_sessions = cursor.fetchone()[0]
+    
+    # Sessions this student attended
+    cursor.execute("SELECT COUNT(DISTINCT session_id) FROM attendance WHERE roll_no = ?", (roll_no,))
+    attended_sessions = cursor.fetchone()[0]
+    
+    # Recent timeline (last 50 scans)
+    cursor.execute('''
+        SELECT se.session_name, a.timestamp
+        FROM attendance a
+        LEFT JOIN sessions se ON a.session_id = se.id
+        WHERE a.roll_no = ?
+        ORDER BY a.timestamp DESC
+        LIMIT 50
+    ''', (roll_no,))
+    history_records = cursor.fetchall()
+    
+    conn.close()
+    
+    percentage = round((attended_sessions / total_sessions * 100)) if total_sessions > 0 else 0
+    
+    return jsonify({
+        "stats": {
+            "total_sessions": total_sessions,
+            "attended": attended_sessions,
+            "percentage": percentage
+        },
+        "history": [{"session": r[0] or "Manual Scan", "timestamp": r[1]} for r in history_records]
+    }), 200
+
 @app.route('/update_profile', methods=['POST'])
 @student_required
 def update_profile():

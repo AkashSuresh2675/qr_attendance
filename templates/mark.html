@@ -91,6 +91,48 @@
             </div>
 
         </div>
+        <!-- Student Analytics Section -->
+        <div class="mt-8 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                <h3 class="font-bold text-slate-800">My Attendance Progress</h3>
+            </div>
+
+            <div class="p-6">
+                <div id="analyticsLoading" class="text-center py-4 text-slate-500 font-medium">Loading
+                    statistics...</div>
+
+                <div id="analyticsContent" class="hidden">
+                    <div class="flex items-center gap-6 mb-8">
+                        <div class="relative w-24 h-24 flex-shrink-0">
+                            <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                                <path class="text-slate-100" stroke-width="3" stroke="currentColor" fill="none"
+                                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                <path id="progressCircle" class="text-indigo-600 transition-all duration-1000 ease-out"
+                                    stroke-dasharray="0, 100" stroke-width="3" stroke="currentColor" fill="none"
+                                    class="text-indigo-600"
+                                    d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                            </svg>
+                            <div class="absolute inset-0 flex items-center justify-center flex-col">
+                                <span id="progressPercent" class="text-xl font-bold text-slate-800">0%</span>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="text-lg font-bold text-slate-900">Total Attendance</h4>
+                            <p class="text-slate-500 mt-1">You have attended <span id="statAttended"
+                                    class="font-bold text-indigo-600">0</span> out of <span id="statTotal"
+                                    class="font-semibold text-slate-700">0</span> total
+                                sessions recorded.</p>
+                        </div>
+                    </div>
+
+                    <h4 class="font-bold text-slate-800 mb-4 border-b border-slate-100 pb-2">Recent
+                        Scans</h4>
+                    <div class="space-y-4 max-h-[300px] overflow-y-auto pr-2" id="historyTimeline">
+                        <!-- Timeline items injected here -->
+                    </div>
+                </div>
+            </div>
+        </div>
     </main>
 
     <script src="{{ url_for('static', filename='script.js') }}"></script>
