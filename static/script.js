@@ -293,8 +293,35 @@ function initTeacherDashboard() {
     }
 
     // Also auto load dashboard if tableBody exists but we are on the global dashboard page
+    const sessionFilter = document.getElementById('sessionFilter');
     if (tableBody && !generateBtn) {
         loadDashboard(tableBody, null);
+        populateSessionFilter();
+    }
+
+    if (sessionFilter) {
+        sessionFilter.addEventListener('change', (e) => {
+            const val = e.target.value;
+            loadDashboard(tableBody, val === 'all' ? null : val);
+        });
+    }
+
+    async function populateSessionFilter() {
+        if (!sessionFilter) return;
+        try {
+            const res = await fetch(`${API_BASE_URL}/get_sessions`);
+            const result = await res.json();
+            if (result.data) {
+                result.data.forEach(sess => {
+                    const opt = document.createElement('option');
+                    opt.value = sess.id;
+                    opt.textContent = `${sess.session_name} (${new Date(sess.date).toLocaleDateString()})`;
+                    sessionFilter.appendChild(opt);
+                });
+            }
+        } catch (e) {
+            console.error("Failed to load sessions", e);
+        }
     }
 
     function startScanner() {
@@ -494,12 +521,16 @@ function initTeacherDashboard() {
 let pieChartInstance = null;
 let barChartInstance = null;
 
-async function loadAnalytics() {
+async function loadAnalytics(sessionId = null) {
     const analyticsSection = document.getElementById('analyticsSection');
     if (!analyticsSection) return;
 
     try {
-        const res = await fetch(`${API_BASE_URL}/api/attendance_stats`);
+        // We reuse the existing stats endpoint, but for specific session, it would need a backend change or frontend filter
+        // For now, the stats endpoint handles "latest session" or "global".
+        // To keep it simple, if no sessionId (All Records), show global stats.
+        const url = sessionId ? `${API_BASE_URL}/api/attendance_stats?session_id=${sessionId}` : `${API_BASE_URL}/api/attendance_stats`;
+        const res = await fetch(url);
         if (!res.ok) return;
         const data = await res.json();
 
@@ -568,10 +599,8 @@ async function loadDashboard(tableBody, sessionId = null) {
         if (!response.ok) throw new Error('Failed to fetch data');
         const result = await response.json();
 
-        // Reload analytics if on global dashboard
-        if (!sessionId) {
-            loadAnalytics();
-        }
+        // Reload analytics if on global dashboard or specific session
+        loadAnalytics(sessionId);
 
         tableBody.innerHTML = '';
         if (result.data.length === 0) {

@@ -616,6 +616,8 @@ def dashboard():
 @app.route('/api/attendance_stats', methods=['GET'])
 @teacher_required
 def attendance_stats():
+    session_id = request.args.get('session_id')
+    
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     
@@ -623,22 +625,30 @@ def attendance_stats():
     cursor.execute("SELECT COUNT(*) FROM students")
     total_students = cursor.fetchone()[0]
     
-    # Get the latest session ID for "present/absent" logic
-    cursor.execute("SELECT id FROM sessions ORDER BY date DESC LIMIT 1")
-    session_record = cursor.fetchone()
-    if session_record:
-        latest_session_id = session_record[0]
-        # Present in latest session
-        cursor.execute("SELECT COUNT(DISTINCT roll_no) FROM attendance WHERE session_id = ?", (latest_session_id,))
+    # Get the target session ID
+    if session_id and session_id != 'all':
+        target_session_id = session_id
+    else:
+        # Get the latest session ID for "present/absent" logic
+        cursor.execute("SELECT id FROM sessions ORDER BY date DESC LIMIT 1")
+        session_record = cursor.fetchone()
+        target_session_id = session_record[0] if session_record else None
+
+    if target_session_id:
+        # Present in selected/latest session
+        cursor.execute("SELECT COUNT(DISTINCT roll_no) FROM attendance WHERE session_id = ?", (target_session_id,))
         present = cursor.fetchone()[0]
     else:
         present = 0
         
     absent = total_students - present if total_students > present else 0
     
-    # Total sessions
-    cursor.execute("SELECT COUNT(*) FROM sessions")
-    total_sessions = cursor.fetchone()[0]
+    # Total sessions or specific session count
+    if session_id and session_id != 'all':
+        total_sessions = 1
+    else:
+        cursor.execute("SELECT COUNT(*) FROM sessions")
+        total_sessions = cursor.fetchone()[0]
     
     # Attendance per student
     cursor.execute('''

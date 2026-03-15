@@ -104,9 +104,14 @@
 
         <!-- Historical Database Table -->
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-8">
-            <div class="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+            <div class="p-5 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-center bg-slate-50/50 gap-4">
                 <h3 class="font-bold text-slate-800">Historical Attendance Log</h3>
-                <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider">All Records</span>
+                <div class="flex items-center gap-3 w-full sm:w-auto">
+                    <label for="sessionFilter" class="text-xs font-bold text-slate-500 uppercase tracking-wider whitespace-nowrap">Filter by Session:</label>
+                    <select id="sessionFilter" class="bg-white border border-slate-200 text-slate-700 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block w-full p-2 py-1.5 shadow-sm">
+                        <option value="all">All Records</option>
+                    </select>
+                </div>
             </div>
 
             <div class="overflow-x-auto h-[600px]">
