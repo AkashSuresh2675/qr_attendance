@@ -1,0 +1,115 @@
+name: CI/CD Pipeline - Build & Deploy to AWS EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build_and_push:
+    name: Build Docker Image & Push to Docker Hub
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: true
+          no-cache: true
+          tags: ${{ secrets.DOCKER_USERNAME }}/qr-attendance:latest
+
+  deploy:
+    name: Deploy to AWS EC2
+    needs: build_and_push
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          envs: DOCKER_USERNAME
+          script: |
+            # 1. Create directory structure on EC2
+            mkdir -p ~/qr-attendance/nginx
+
+            # 2. Re-create the docker-compose file
+            cat > ~/qr-attendance/docker-compose.yml << EOF
+            version: "3.8"
+            services:
+              app:
+                image: ${DOCKER_USERNAME}/qr-attendance:latest
+                container_name: qr-attendance-app
+                restart: unless-stopped
+                expose:
+                  - "5000"
+                volumes:
+                  - ./attendance.db:/app/attendance.db
+                networks:
+                  - webnet
+              nginx:
+                image: nginx:alpine
+                container_name: qr-attendance-nginx
+                restart: unless-stopped
+                ports:
+                  - "80:80"
+                volumes:
+                  - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+                depends_on:
+                  - app
+                networks:
+                  - webnet
+            networks:
+              webnet:
+                driver: bridge
+            EOF
+
+            # 3. Create Nginx config file explicitly
+            cat > ~/qr-attendance/nginx/nginx.conf << 'NGINXEOF'
+            server {
+                listen 80;
+                location / {
+                    proxy_pass         http://app:5000;
+                    proxy_http_version 1.1;
+                    proxy_set_header   Upgrade \$http_upgrade;
+                    proxy_set_header   Connection 'upgrade';
+                    proxy_set_header   Host \$host;
+                    proxy_set_header   X-Real-IP \$remote_addr;
+                    proxy_set_header   X-Forwarded-For \$proxy_add_x_forwarded_for;
+                    proxy_set_header   X-Forwarded-Proto \$scheme;
+                    proxy_cache_bypass \$http_upgrade;
+                }
+            }
+            NGINXEOF
+
+            # Create an empty db file if it doesn't exist so Docker can mount it securely without creating a directory
+            touch ~/qr-attendance/attendance.db
+
+            # 4. Pull fresh image and restart containers
+            docker pull ${DOCKER_USERNAME}/qr-attendance:latest
+            cd ~/qr-attendance
+            docker compose down || true
+            DOCKER_USERNAME=${DOCKER_USERNAME} docker compose pull
+            DOCKER_USERNAME=${DOCKER_USERNAME} docker compose up -d --force-recreate
+            
+            # 5. Clean up old unused images
+            docker image prune -f
+            
+            echo "🚀 Deployment successfully completed on EC2!"

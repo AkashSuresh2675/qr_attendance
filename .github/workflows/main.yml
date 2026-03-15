@@ -3,7 +3,7 @@ name: Deploy Flask App to AWS
 on:
   push:
     branches:
-      - main
+      - disabled-do-not-use
 
 jobs:
   build-and-deploy:
