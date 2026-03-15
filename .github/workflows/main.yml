@@ -27,6 +27,15 @@ jobs:
         run: |
           docker push ${{ secrets.DOCKER_USERNAME }}/qr-attendance
 
+      - name: Copy config files to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          source: "docker-compose.yml,nginx/nginx.conf"
+          target: "~/qr_attendance_system"
+
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v0.1.7
         with:
@@ -34,43 +43,47 @@ jobs:
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.SSH_KEY }}
           script: |
-            # Ensure the directory exists
-            mkdir -p ~/qr_attendance_system
             cd ~/qr_attendance_system
-            
-            # Export environment variables for docker-compose
+
+            # Export environment variables for docker compose
             export DOCKER_USERNAME="${{ secrets.DOCKER_USERNAME }}"
             export GOOGLE_CLIENT_ID="${{ secrets.GOOGLE_CLIENT_ID }}"
             export GOOGLE_CLIENT_SECRET="${{ secrets.GOOGLE_CLIENT_SECRET }}"
-            
-            # Pull the latest image
+
+            # FREE UP DISK SPACE: Remove stopped containers, old images, unused volumes
+            docker system prune -af --volumes
+
+            # Pull the latest app image
             docker pull ${{ secrets.DOCKER_USERNAME }}/qr-attendance
-            
-            # Initialize dummy SSL certificate if it doesn't exist so Nginx can start
-            if [ ! -d "./certbot/conf/live/system.duckdns.org" ]; then
-              echo "Initializing Let's Encrypt certificates for the first time..."
+
+            # Create nginx config directory if needed
+            mkdir -p ./nginx
+
+            # Initialize a self-signed SSL cert if it doesn't exist yet so Nginx can start
+            if [ ! -f "./certbot/conf/live/system.duckdns.org/privkey.pem" ]; then
+              echo "Generating self-signed cert for first-time startup..."
               mkdir -p ./certbot/conf/live/system.duckdns.org
-              mkdir -p ./certbot/conf/archive/system.duckdns.org
+              mkdir -p ./certbot/www
               openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
                 -keyout "./certbot/conf/live/system.duckdns.org/privkey.pem" \
                 -out "./certbot/conf/live/system.duckdns.org/fullchain.pem" \
                 -subj "/CN=system.duckdns.org"
             fi
-            
-            # Start Nginx and App (which uses the dummy cert)
-            docker-compose up -d nginx
-            
-            # Run certbot to replace the dummy cert with a real one
-            docker-compose run --rm --entrypoint "\
-              certbot certonly --webroot -w /var/www/certbot \
-                --email akashsuresh2027@cs.ajce.in \
-                -d system.duckdns.org \
-                --rsa-key-size 4096 \
-                --agree-tos \
-                --force-renewal" certbot
-            
-            # Restart Nginx to load the new real certificate
-            docker-compose restart nginx
-            
-            # Ensure all services are running properly
-            docker-compose up -d
+
+            # Start Nginx and App using the self-signed cert first
+            docker compose up -d nginx app
+
+            # Run Certbot to get a real Let's Encrypt certificate
+            docker compose run --rm certbot certonly --webroot \
+              -w /var/www/certbot \
+              --email akashsuresh2027@cs.ajce.in \
+              -d system.duckdns.org \
+              --rsa-key-size 4096 \
+              --agree-tos \
+              --force-renewal
+
+            # Reload Nginx to pick up the new real certificate
+            docker compose exec nginx nginx -s reload
+
+            # Ensure all services are up
+            docker compose up -d
