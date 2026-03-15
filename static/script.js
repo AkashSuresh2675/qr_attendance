@@ -766,7 +766,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setupLogoutBtn();
 
     // Since server handles routing exactly via dashboard routes
-    if (path.includes('teacher_dashboard') || path.includes('dashboard.html') || path.includes('teacher_portal')) {
+    if (path.includes('teacher_dashboard') || path.includes('dashboard.html') || path.includes('teacher_portal') || path === '/dashboard') {
         initTeacherDashboard();
     } else if (path.includes('student_dashboard') || path.includes('mark')) {
         initStudentView();
