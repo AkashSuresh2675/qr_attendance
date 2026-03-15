@@ -102,7 +102,11 @@ jobs:
             # Create an empty db file if it doesn't exist so Docker can mount it securely without creating a directory
             touch ~/qr-attendance/attendance.db
 
-            # 4. Pull fresh image and restart containers
+            # 4. Force stop ALL old containers regardless of how they were started
+            docker stop qr-app qr-attendance-app qr-attendance-nginx || true
+            docker rm   qr-app qr-attendance-app qr-attendance-nginx || true
+
+            # Pull fresh image and restart containers
             docker pull ${DOCKER_USERNAME}/qr-attendance:latest
             cd ~/qr-attendance
             docker compose down || true
