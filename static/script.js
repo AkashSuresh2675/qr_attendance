@@ -1,4 +1,5 @@
 const API_BASE_URL = window.location.origin;
+console.log('[QR Attendance] script.js v4 loaded. Path:', window.location.pathname);
 
 function logout() {
     window.location.href = '/logout';
