@@ -48,58 +48,23 @@ jobs:
           envs: DOCKER_USERNAME
           script: |
             # 1. Create directory structure on EC2
-            mkdir -p ~/qr-attendance/nginx
+            mkdir -p ~/qr-attendance
 
-            # 2. Re-create the docker-compose file
+            # 2. Re-create the docker-compose file (no Docker nginx - system nginx handles port 80/443)
             cat > ~/qr-attendance/docker-compose.yml << EOF
             version: "3.8"
             services:
               app:
                 image: ${DOCKER_USERNAME}/qr-attendance:latest
-                container_name: qr-attendance-app
-                restart: unless-stopped
-                expose:
-                  - "5000"
-                volumes:
-                  - ./attendance.db:/app/attendance.db
-                networks:
-                  - webnet
-              nginx:
-                image: nginx:alpine
-                container_name: qr-attendance-nginx
+                container_name: qr-app
                 restart: unless-stopped
                 ports:
-                  - "80:80"
+                  - "5000:5000"
                 volumes:
-                  - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-                depends_on:
-                  - app
-                networks:
-                  - webnet
-            networks:
-              webnet:
-                driver: bridge
+                  - /home/${USER:-ubuntu}/qr-attendance/attendance.db:/app/attendance.db
             EOF
 
-            # 3. Create Nginx config file explicitly
-            cat > ~/qr-attendance/nginx/nginx.conf << 'NGINXEOF'
-            server {
-                listen 80;
-                location / {
-                    proxy_pass         http://app:5000;
-                    proxy_http_version 1.1;
-                    proxy_set_header   Upgrade \$http_upgrade;
-                    proxy_set_header   Connection 'upgrade';
-                    proxy_set_header   Host \$host;
-                    proxy_set_header   X-Real-IP \$remote_addr;
-                    proxy_set_header   X-Forwarded-For \$proxy_add_x_forwarded_for;
-                    proxy_set_header   X-Forwarded-Proto \$scheme;
-                    proxy_cache_bypass \$http_upgrade;
-                }
-            }
-            NGINXEOF
-
-            # Create an empty db file if it doesn't exist so Docker can mount it securely without creating a directory
+            # 3. Create an empty db file if it doesn't exist
             touch ~/qr-attendance/attendance.db
 
             # 4. Force stop ALL old containers regardless of how they were started
