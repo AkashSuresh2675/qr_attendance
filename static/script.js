@@ -198,10 +198,13 @@ function initTeacherDashboard() {
                 generateBtn.disabled = true;
                 generateBtn.textContent = 'Starting...';
 
+                const sessionNameInput = document.getElementById('sessionNameInput');
+                const sessionName = sessionNameInput ? sessionNameInput.value.trim() : "";
+
                 const response = await fetch(`${API_BASE_URL}/create_session`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({})
+                    body: JSON.stringify({ session_name: sessionName })
                 });
 
                 if (!response.ok) {
@@ -215,6 +218,9 @@ function initTeacherDashboard() {
                 sessionInfo.classList.remove('hidden');
 
                 generateBtn.classList.add('hidden');
+                const sessionNameGroup = document.getElementById('sessionNameGroup');
+                if (sessionNameGroup) sessionNameGroup.classList.add('hidden');
+                
                 if (scanContainer) scanContainer.classList.remove('hidden');
                 if (sessionControls) sessionControls.classList.remove('hidden');
                 if (resumeScanBtn) resumeScanBtn.classList.add('hidden');
@@ -263,6 +269,8 @@ function initTeacherDashboard() {
                 generateBtn.classList.remove('hidden');
                 generateBtn.disabled = false;
                 generateBtn.textContent = 'Start New Session & Open Scanner';
+                const sessionNameGroup = document.getElementById('sessionNameGroup');
+                if (sessionNameGroup) sessionNameGroup.classList.remove('hidden');
             }
         });
     }

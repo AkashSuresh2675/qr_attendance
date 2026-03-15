@@ -10,6 +10,11 @@ import pandas as pd
 from authlib.integrations.flask_client import OAuth
 from flask import send_file
 from werkzeug.middleware.proxy_fix import ProxyFix
+from datetime import timedelta
+
+def get_ist_time():
+    # IST is UTC + 5:30
+    return datetime.utcnow() + timedelta(hours=5, minutes=30)
 
 app = Flask(__name__)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
@@ -512,12 +517,14 @@ def update_profile():
 def create_session():
     data = request.json
     session_name = data.get("session_name")
+    
+    ist_now = get_ist_time()
     if not session_name:
-        session_name = f"Session {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        session_name = f"Session {ist_now.strftime('%Y-%m-%d %H:%M')}"
     
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
-    cursor.execute("INSERT INTO sessions (session_name) VALUES (?)", (session_name,))
+    cursor.execute("INSERT INTO sessions (session_name, date) VALUES (?, ?)", (session_name, ist_now.strftime('%Y-%m-%d %H:%M:%S')))
     session_id = cursor.lastrowid
     conn.commit()
     conn.close()
@@ -596,9 +603,10 @@ def api_mark_attendance():
         return jsonify({"error": "Already Marked", "status": "duplicate"}), 409
 
     try:
+        ist_now = get_ist_time()
         cursor.execute(
-            "INSERT INTO attendance (roll_no, session_id) VALUES (?, ?)",
-            (roll_no, session_id)
+            "INSERT INTO attendance (roll_no, session_id, timestamp) VALUES (?, ?, ?)",
+            (roll_no, session_id, ist_now.strftime('%Y-%m-%d %H:%M:%S'))
         )
         conn.commit()
         return jsonify({"message": "Success", "status": "success"}), 201
