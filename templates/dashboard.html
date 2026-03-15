@@ -134,7 +134,9 @@
     <script src="{{ url_for('static', filename='script.js') }}"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            loadDashboard();
+            const tableBody = document.getElementById('attendanceTableBody');
+            loadDashboard(tableBody, null);
+            loadAnalytics();
         });
     </script>
 </body>
